@@ -32,9 +32,10 @@ import org.json.simple.JSONArray;
 import org.json.simple.JSONValue;
 import org.apache.commons.lang3.StringEscapeUtils
 
-import org.bonitasoft.console.common.server.page.PageContext
-import org.bonitasoft.console.common.server.page.PageController
-import org.bonitasoft.console.common.server.page.PageResourceProvider
+import org.bonitasoft.web.extension.page.PageContext;
+import org.bonitasoft.web.extension.page.PageController;
+import org.bonitasoft.web.extension.page.PageResourceProvider;
+
 import org.bonitasoft.engine.exception.UnknownAPITypeException;
 
 import org.bonitasoft.engine.api.TenantAPIAccessor;
