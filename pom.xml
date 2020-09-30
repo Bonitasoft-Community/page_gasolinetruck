@@ -1,16 +1,17 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<properties>
+		<bonita.version>7.8.4</bonita.version>
 		<!-- <ping.version>2.4.0</ping.version> -->
 	</properties>
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>org.bonitasoft.custompage</groupId>
-	<artifactId>CustomPageGasoline</artifactId>
-	<version>1.7.0</version>
+	<artifactId>bonita-gasoline</artifactId>
+	<version>1.7.1</version>
 	<dependencies>
 		<dependency>
 			<groupId>org.bonitasoft.engine</groupId>
 			<artifactId>bonita-server</artifactId>
-			<version>7.8.4</version>
+			<version>${bonita.version}</version>
 			<scope>provided</scope>
 		</dependency>
 		<dependency>
@@ -21,7 +22,7 @@
 		<dependency>
 			<groupId>org.bonitasoft.properties</groupId>
 			<artifactId>bonita-properties</artifactId>
-			<version>2.5.0</version>
+			<version>2.7.0</version>
 		</dependency>
 
 		<!-- to execute the Deploy Plugin -->
@@ -33,7 +34,7 @@
 		<dependency>
 			<groupId>org.bonitasoft.engine</groupId>
 			<artifactId>bonita-client</artifactId>
-			<version>7.8.4</version>
+			<version>${bonita.version}</version>
 			<scope>provided</scope>
 		</dependency>
 
