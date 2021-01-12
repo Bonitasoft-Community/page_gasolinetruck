@@ -91,7 +91,10 @@ public class Actions {
 			}
 			actionAnswer.isManaged=true;
 			
-			
+            if (! TokenValidator.checkCSRFToken(request, response)) {
+                actionAnswer.isResponseMap=false;
+                return actionAnswer;
+            }
 			APISession session = pageContext.getApiSession()
 		    ProcessAPI processAPI = TenantAPIAccessor.getProcessAPI(session);
             ProfileAPI profileAPI =   TenantAPIAccessor.getProfileAPI(session);

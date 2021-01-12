@@ -6,7 +6,7 @@
 (function() {
 
 
-var appCommand = angular.module('gasolinemonitor', ['googlechart', 'ui.bootstrap','ngSanitize', 'ngModal']);
+var appCommand = angular.module('gasolinemonitor', ['googlechart', 'ui.bootstrap','ngSanitize', 'ngModal', 'ngCookies']);
 
 
 
@@ -21,7 +21,7 @@ var appCommand = angular.module('gasolinemonitor', ['googlechart', 'ui.bootstrap
 
 // Ping the server
 appCommand.controller('GasolineControler',
-	function ( $http, $scope,$sce ) {
+	function ( $http, $scope,$sce, $cookies ) {
 
 	
 	// --------------------------------------------------------------------------
@@ -40,6 +40,16 @@ appCommand.controller('GasolineControler',
 		return $sce.trustAsHtml(  listevents);
 	}
 	
+	this.getHttpConfig = function () {
+		var additionalHeaders = {};
+		var csrfToken = $cookies.get('X-Bonita-API-Token');
+		if (csrfToken) {
+			additionalHeaders ['X-Bonita-API-Token'] = csrfToken;
+		}
+		var config= {"headers": additionalHeaders};
+		console.log("GetHttpConfig : "+angular.toJson( config));
+		return config;
+	}
 	// --------------------------------------------------------------------------
 	//
 	//  Manage the query
@@ -72,7 +82,7 @@ appCommand.controller('GasolineControler',
 		self.loading=true;
 		var d = new Date();
 		
-		$http.get( '?page=custompage_gasolinetruck&action=loadqueries&t='+d.getTime() )
+		$http.get( '?page=custompage_gasolinetruck&action=loadqueries&t='+d.getTime(), this.getHttpConfig()  )
 				.success( function ( jsonResult ) {
 						console.log("history",jsonResult);
 						self.listqueries 	= jsonResult.listqueries;
@@ -100,7 +110,7 @@ appCommand.controller('GasolineControler',
 		var json= encodeURI( angular.toJson(this.currentquery, false));
 		var d = new Date();
 		
-		$http.get( '?page=custompage_gasolinetruck&action=savequery&paramjson='+json+'&t='+d.getTime() )
+		$http.get( '?page=custompage_gasolinetruck&action=savequery&paramjson='+json+'&t='+d.getTime(), this.getHttpConfig()  )
 				.success( function ( jsonResult ) {
 						console.log("history",jsonResult);
 						self.listqueries = jsonResult.listqueries;
@@ -126,7 +136,7 @@ appCommand.controller('GasolineControler',
 		self.saving=true;
 		var d = new Date();	
 		
-		$http.get( '?page=custompage_gasolinetruck&action=removequery&paramjson='+json+'&t='+d.getTime() )
+		$http.get( '?page=custompage_gasolinetruck&action=removequery&paramjson='+json+'&t='+d.getTime(), this.getHttpConfig()  )
 				.success( function ( jsonResult ) {
 						self.listqueries = jsonResult.listqueries;
 						self.closeDialog();
@@ -159,7 +169,7 @@ appCommand.controller('GasolineControler',
 			url = url+'&'+this.testparameters;
 			
 		
-		$http.get( url )
+		$http.get( url, this.getHttpConfig()  )
 				.success( function ( jsonResult ) {
 						console.log("testquery",jsonResult);
 						self.resulttestquery = jsonResult;
