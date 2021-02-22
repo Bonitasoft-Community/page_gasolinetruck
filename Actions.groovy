@@ -92,7 +92,7 @@ public class Actions {
 			actionAnswer.isManaged=true;
 			
             if (! TokenValidator.checkCSRFToken(request, response)) {
-                actionAnswer.isResponseMap=false;
+                logger.info("#### GasolineTruck:Actions checkCSRFToken failed");                
                 return actionAnswer;
             }
 			APISession session = pageContext.getApiSession()

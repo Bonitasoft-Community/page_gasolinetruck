@@ -38,7 +38,7 @@
 <center>
 		<table>
 			<tr>
-				<td><h1>Gasoline Truck</h1>V1.8.0</td>
+				<td><h1>Gasoline Truck</h1>V1.8.1</td>
 				<td rowspan="2"><img src="img/gasolinetruck.jpg" width="150" heigth="150" /></td>
 			</tr>
 			<tr><td>
@@ -158,7 +158,8 @@
 								<!-- {{gasolinectrl.currentquery}} -->
 							</td>
 						</tr>
-						<tr><td  colspan="4">	<div ng-bind-html="gasolinectrl.getListEvents(gasolinectrl.listeventssave )"></div></td>
+						<tr><td colspan="4"> <div ng-bind-html="gasolinectrl.getListEvents(gasolinectrl.listeventssave )"></div></td>
+						<tr><td colspan="4"> <div class="well">To see the REST API, see the Test tab</div></td>
 						</tr>
 					</table>
 				</div>
@@ -176,7 +177,22 @@
 							</td>
 						</tr><tr>
 							<td colspan="4">							
-							RestAPI:<span class="label label-info">/bonita/portal/custom-page/custompage_gasolinetruck/?page=custompage_gasolinetruck&action=query&queryId={{gasolinectrl.currentquery.id}}&{{gasolinectrl.testparameters}}</span>
+							RestAPI:
+							<div >
+							<table>
+							<tr>
+								<td><li/>Page deploy under a profile? 
+								</td><td><span class="label label-info">/bonita/portal/custom-page/custompage_gasolinetruck?action=query&queryId={{gasolinectrl.currentquery.id}}&{{gasolinectrl.testparameters}}</span></td>
+							</tr><tr>
+								<td><li/>Page deploy under an application?
+								</td><td><span class="label label-info">/bonita/portal/resource/app/&lt;APP_NAME&gt;/&lt;PAGE_NAME&gt;/content/?page=custompage_gasolinetruck&action=query&queryId=bo</span></td>
+							</tr>
+							</table>
+								
+							</div>
+							<br/>
+							<div class="well">
+								This REST API works correctly in a UIDesigner page. If you like to test it from scratch, pay attention to join the X-Bonita-API-Token in the REST CALL.</div>
 							</td>
 						</tr><tr>
 						<td colspan="4">	
@@ -205,20 +221,20 @@
 					<div ng-show="gasolinectrl.testdisplay == 'json'">  
 						{{gasolinectrl.resulttestquery.rows}}
 					</div>
-					<div ng-show="gasolinectrl.testdisplay == 'list'">  
+					<div ng-show="gasolinectrl.testdisplay == 'list'"> 
 						<table class="table table-bordered">
 							<!-- <tr><td>{{gasolinectrl.getHeaderResultTest()}}</td</tr>   -->  
 						
 							<tr>
 								<th ng-repeat="(col,value)  in gasolinectrl.getHeaderResultTest() | orderBy : col">
-								 {{col}}
+								 {{value}}
 								</th>
 							</tr>
 							
-							<tr ng-repeat="resulttest  in gasolinectrl.resulttestquery.rows">
-								<!--  <td>{{resulttest}}</td> -->
-									<td ng-repeat="(col,value)  in gasolinectrl.getHeaderResultTest()  | orderBy : col ">
-										{{resulttest[ col ]}}
+							<tr ng-repeat="resulttest in gasolinectrl.resulttestquery.rows">
+								
+									<td ng-repeat="(col,value) in gasolinectrl.getHeaderResultTest()  | orderBy : col ">
+										{{resulttest[ value ]}}
 									<td>
 								</tr>
 						</table>

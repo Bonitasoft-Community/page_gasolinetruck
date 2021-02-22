@@ -235,9 +235,16 @@ appCommand.controller('GasolineControler',
 		if (this.resulttestquery.rows && this.resulttestquery.rows.length > 0)
 		{
 			var firstline =  this.resulttestquery.rows[ 0 ];
-			return firstline;
+			var listCols= [];
+			 angular.forEach( firstline, function (value, key) {
+				 console.log("key="+key);
+				 if (key !== "$$hashKey")
+					 listCols.push( key );
+			} );
+			 console.log("listCols = "+angular.toJson( listCols));
+			return listCols;
 		}
-		return {};
+		return [];
 	}
 
 });
