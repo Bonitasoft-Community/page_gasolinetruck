@@ -27,18 +27,12 @@
 
 <!--  Page Directory: @_PAGEDIRECTORY_@ -->
 
-		<!-- 
-			<modal-dialog show='gasolinectrl.isshowDialog' dialog-title='Details' width='75%' height='80%' 	close="gasolinectrl.closeDialog()">
-				<div class="modal-content" width='100%' height='100%'>
-					<h2>Query</h2>
-				</div>
-			</modal-dialog>
-			 -->
+	
 			
 <center>
 		<table>
 			<tr>
-				<td><h1>Gasoline Truck</h1>V1.8.1</td>
+				<td><h1>Gasoline Truck</h1>V1.9.0</td>
 				<td rowspan="2"><img src="img/gasolinetruck.jpg" width="150" heigth="150" /></td>
 			</tr>
 			<tr><td>
@@ -129,19 +123,17 @@
 					<p>
 					<table  width="100%">
 						<tr>
-							<td>QueryId:</td><td><input type="text" ng-model="gasolinectrl.currentquery.id"> </td>
-							<td>Expl:</td><td><input type="text" ng-model="gasolinectrl.currentquery.expl"></td>
+							<td style="vertical-align: top">QueryId:</td><td><input type="text" ng-model="gasolinectrl.currentquery.id"> </td>
+							<td style="vertical-align: top">Expl:</td><td><input type="text" ng-model="gasolinectrl.currentquery.expl"></td>
 						</tr><tr>
-							<td>Sql:</td><td colspan="3"><textarea rows="4" cols="100" ng-model="gasolinectrl.currentquery.sql"></textarea><p>
+							<td style="vertical-align: top">Sql:</td><td colspan="3"><textarea rows="4" cols="100" ng-model="gasolinectrl.currentquery.sql"></textarea><p>
 							TIPS: use <i>:<parametersname> to set a parameters, like <i>select * from country where age = :myage and title = :title </i></td>
-						</tr><tr>
-						  <td colspan="4"><div class="alert alert-warning">Attention, the size of SqlRequest + Result : a custom page work in HTTP GET so limit is about 2K-8K</div></td>
 						</tr><tr>							
-							<td>Datasource:</td><td>  <input type="text" ng-model="gasolinectrl.currentquery.datasource" size="60"><br>
+							<td style="vertical-align: top">Datasource:</td><td>  <input type="text" ng-model="gasolinectrl.currentquery.datasource" size="60"><br>
 									TIPS: a datasource sould be <i>java:comp/env/NotManagedBizDataDS</i></td>
 							<td>Delay:</td><td>  <input type="text" ng-model="gasolinectrl.currentquery.delayms" >ms
 						</tr><tr>							
-							<td>Profile:</td><td>  <input type="text" ng-model="gasolinectrl.currentquery.profilename" size="60"><br>
+							<td style="vertical-align: top">Profile:</td><td>  <input type="text" ng-model="gasolinectrl.currentquery.profilename" size="60"><br>
 									User must be registered in one of this profile to run the query. Empty for public query. Use comma to separate as "User, Voyageur, Monitor"</i><br>
 									Existing profiles: {{gasolinectrl.listprofiles}}</td>
 							
@@ -198,9 +190,9 @@
 						<td colspan="4">	
 							<table>
 								<tr><td>
-								<div ng-show="gasolinectrl.executing">
-									<span class="Loading" >.</span> Saving..
-								</div>	
+									<div ng-show="gasolinectrl.executing">
+										<span class="Loading" >.</span> Executing...
+									</div>
 								</td><td>							
 									<button class="btn btn-danger btn-xs" ng-click="gasolinectrl.testQuery()" ng-disabled="gasolinectrl.executing">Test</button> <p>
 								</td></tr></table>
@@ -208,12 +200,10 @@
 						</tr>
 					</table>
 						
-					<div ng-show="gasolinectrl.executing">
-							<span class="Loading" >.</span> Executing..
-					</div>
+					
 		
 					<div ng-bind-html="gasolinectrl.getListEvents(gasolinectrl.listeventstest )"></div>
-					Executed in {{gasolinectrl.resulttestquery.stats}} ms<p>
+					<i>{{gasolinectrl.resulttestquery.nbrows}} rows, executed in {{gasolinectrl.resulttestquery.stats}} ms at {{gasolinectrl.resulttestquery.dateexecution}}</i><p>
 					
 					<input type="radio" ng-model="gasolinectrl.testdisplay" value="json">JSON
 					<input type="radio" ng-model="gasolinectrl.testdisplay" value="list">List

@@ -12,6 +12,7 @@ import java.util.StringTokenizer;
 
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse
+import javax.servlet.http.HttpSession;
 import javax.naming.Context;
 import javax.naming.InitialContext;
 
@@ -58,12 +59,11 @@ import org.bonitasoft.properties.BonitaProperties;
 
 public class Actions {
 
-	private static Logger logger = Logger.getLogger("org.bonitasoft.custompage.gasoline.groovy");
+    private static Logger logger = Logger.getLogger("org.bonitasoft.custompage.gasoline.groovy");
 
-	private static BEvent administratorOnly = new BEvent("org.bonitasoft.gasolinetruck", 1, Level.APPLICATIONERROR, "Administrator access", "Only an Administrator can access this function", "No access", "Ask an administrator");
-	
-	
-	 static String[]  listAttributs = [
+    private static BEvent administratorOnly = new BEvent("org.bonitasoft.gasolinetruck", 1, Level.APPLICATIONERROR, "Administrator access", "Only an Administrator can access this function", "No access", "Ask an administrator");
+
+    static String[]  listAttributs = [
 	                            "sql",
 	                            "datasource",
 	                            "expl",
@@ -74,9 +74,8 @@ public class Actions {
 	                            "simulationresult",
 	                            "simulationdelayms"
 	                        ];
-	
-	
-	public static Index.ActionAnswer doAction(HttpServletRequest request, String paramJsonSt, HttpServletResponse response, PageResourceProvider pageResourceProvider, PageContext pageContext) {
+
+    public static Index.ActionAnswer doAction(HttpServletRequest request, String paramJsonSt, HttpServletResponse response, PageResourceProvider pageResourceProvider, PageContext pageContext) {
 				
 		logger.info("#### GasolineTruck:Actions start");
 		Index.ActionAnswer actionAnswer = new Index.ActionAnswer();	
@@ -91,11 +90,8 @@ public class Actions {
 			}
 			actionAnswer.isManaged=true;
 			
-            if (! TokenValidator.checkCSRFToken(request, response)) {
-                logger.info("#### GasolineTruck:Actions checkCSRFToken failed");                
-                return actionAnswer;
-            }
-			APISession session = pageContext.getApiSession()
+			APISession session = pageContext.getApiSession();
+            HttpSession httpSession = request.getSession();            
 		    ProcessAPI processAPI = TenantAPIAccessor.getProcessAPI(session);
             ProfileAPI profileAPI =   TenantAPIAccessor.getProfileAPI(session);
 			IdentityAPI identityAPI =   TenantAPIAccessor.getIdentityAPI(session);
@@ -130,7 +126,14 @@ public class Actions {
 			 // -------------------------- query
 			 if ("query".equals(action) || "testquery".equals(action)) {
                 // execute a query ?
-            	logger.info("jsonHash=["+jsonHash+"]");
+			     // nota : testQuery, the hash come from the httpSession (multi call)
+			     if ( "testquery".equals(action))
+	             {
+			         String accumulateJson = (String) httpSession.getAttribute("accumulate" );
+		             logger.info("#### Gasoline: action[testquery] json="+accumulateJson);
+		             jsonHash = (Map<String, Object>) JSONValue.parse( accumulateJson );
+	             }
+            	logger.info("Gasoline hash=["+jsonHash+"]");
                 if (queryId == null)
                     queryId = jsonHash.get("id");
                 
@@ -142,11 +145,27 @@ public class Actions {
                 String simulationMode   = bonitaProperties.getProperty( queryId + "_simulationmode" );
                 String simulationResult   = bonitaProperties.getProperty( queryId + "_simulationresult" );
                 
+                Map<String, String> params = getSqlParametersFromUrl( request )
 
                 if ( "testquery".equals(action))
                 {
                     querySql = (jsonHash.get("sql")==null ? "" :  jsonHash.get("sql"));
                     datasource = (jsonHash.get("datasource")==null ? "" :  jsonHash.get("datasource"));
+                    String paramsSt = (jsonHash.get("testparameters")==null ? "" :  jsonHash.get("testparameters").toString());
+                    if (paramsSt!=null) {
+                        // decode it
+                        StringTokenizer st = new StringTokenizer( paramsSt, "&");
+                        while (st.hasMoreTokens()) {
+                            String oneToken = st.nextToken();
+                            int posEqual= oneToken.indexOf("=");
+                            if (posEqual==-1) {
+                                params.put( oneToken, "");
+                            } else {
+                                params.put(oneToken.substring(0,posEqual), oneToken.substring( posEqual +1));
+                            }
+                        }
+                        logger.info("params : "+params.toString());
+                    }
                 }
 
 
@@ -209,7 +228,6 @@ public class Actions {
                 if ( continueoperation )
                 {
                     // Build a map will all SQL queries parameters (all REST call parameters expect "queryId").
-                    Map<String, String> params = getSqlParametersFromUrl( request )
                     logger.info("Run queryId["+queryId+"]  SqlQuery["+querySql+"] in  datasource["+datasource +"] params["+params+"] simulationMode ["+simulationMode+"]");
                     String message="";
 
@@ -221,9 +239,10 @@ public class Actions {
                     {
                         // run the sql
                         // Get the database connection using the data source declared in datasource.properties
-                        Sql sql = buildSql(  datasource );
-                        sqlRequest = params.isEmpty() ? querySql : querySql+" [Param "+params+"]";
+                        Sql sql=null;
                         try {
+                            sql = buildSql(  datasource );
+                            sqlRequest = params.isEmpty() ? querySql : querySql+" [Param "+params+"]";
                             logger.info("play rows" );
                             // Run the query with or without parameters.
                             rows = params.isEmpty() ? sql.rows(querySql) : sql.rows(querySql, params)
@@ -253,7 +272,8 @@ public class Actions {
                             }
 
                         } finally {
-                            sql.close()
+                            if (sql!=null)
+                                sql.close()
                         }
                     } // end run sql
                     if (doSimulation)
@@ -299,7 +319,9 @@ public class Actions {
                     if ( "testquery".equals(action))
                     {
                     	actionAnswer.responseMap.put("rows",rows);
-                    	actionAnswer.responseMap.put("stats", (endTime-beginTime));
+                        actionAnswer.responseMap.put("nbrows", rows==null ? 0 : rows.size());
+                        actionAnswer.responseMap.put("stats", (endTime-beginTime));
+                        actionAnswer.responseMap.put("dateexecution", new Date().toString());
 
 
                     }
@@ -318,14 +340,44 @@ public class Actions {
 				actionAnswer.responseMap.put("listevents", BEventFactory.getHtml(listEvents) );
 				return actionAnswer;
             } // end execute a query
-			
-						 
-						 
-			// -------------------------- Administration : only administrator can arrive here
-			if (! isAdministrator)
-				listEvents.add( administratorOnly );
+            else if ("collectReset".equals(action)) {
+                httpSession.setAttribute("accumulate", "" );
+                String paramJsonPartial = request.getParameter("paramjsonpartial");
+                logger.info("collectReset paramJsonPartial=["+paramJsonPartial+"]");
+
+                httpSession.setAttribute("accumulate", paramJsonPartial);
+                actionAnswer.responseMap.put("status", "ok");
+            }
+            else if ("collectAdd".equals(action)) {
+                String paramJsonPartial = request.getParameter("paramjsonpartial");
+
+                String accumulateJson = (String) httpSession.getAttribute("accumulate" );
+                logger.info("collect_add paramJsonPartial=["+paramJsonPartial+"] accumulateJson=["+accumulateJson+"]");
+                accumulateJson+=paramJsonPartial;
+                httpSession.setAttribute("accumulate", accumulateJson );
+                actionAnswer.responseMap.put("status", "ok");
+
+            }
+
+             
+			 // -------------------------- Administration : only administrator can arrive here
+			 if (! isAdministrator)
+			     listEvents.add( administratorOnly );
+	 
 		
-            else if ("savequery".equals(action)) {
+            if ("savequery".equals(action)) {
+                
+                if (! TokenValidator.checkCSRFToken(request, response)) {
+                    logger.info("#### GasolineTruck:Actions checkCSRFToken failed");                
+                    return actionAnswer;
+                }
+
+                
+                String accumulateJson = (String) httpSession.getAttribute("accumulate" );
+                logger.info("#### log: action[updateModel] json="+accumulateJson);
+                jsonHash = (Map<String, Object>) JSONValue.parse( accumulateJson );
+
+             
                 if (jsonHash!=null) {
                     try {
                         BonitaProperties bonitaProperties = new BonitaProperties( pageResourceProvider );
@@ -508,7 +560,7 @@ public class Actions {
 		return actionAnswer;
 	}
 
-	/**
+    /**
      * load all queries
      * populate the listQueries and the listEvents
      */
@@ -544,7 +596,7 @@ public class Actions {
 
     }
 
-	protected static Map<String, String> getSqlParametersFromUrl(HttpServletRequest request) {
+    protected static Map<String, String> getSqlParametersFromUrl(HttpServletRequest request) {
         Map<String, String> params = [:];
 
         for (String parameterName : request.getParameterNames()) {
@@ -561,33 +613,33 @@ public class Actions {
         return params
     }
 
-	protected static  Sql buildSql(  datasource ) {
+    protected static Sql buildSql(  datasource ) {
         Context ctx = new InitialContext()
         DataSource dataSource = (DataSource) ctx.lookup( datasource )
         return new Sql(dataSource)
     }
 
-	private static Set<String> decodeListQuery(String listqueriesString) {
-		Set<String> listQueries = new HashSet<String>();
-		if (listqueriesString == null)
-			return listQueries;
-		StringTokenizer st = new StringTokenizer(listqueriesString, "#");
+    private static Set<String> decodeListQuery(String listqueriesString) {
+        Set<String> listQueries = new HashSet<String>();
+        if (listqueriesString == null)
+            return listQueries;
+        StringTokenizer st = new StringTokenizer(listqueriesString, "#");
 
-		while (st.hasMoreTokens()) {
-			String id = st.nextToken();
-			listQueries.add(id);
-		}
-		return listQueries;
-	}
+        while (st.hasMoreTokens()) {
+            String id = st.nextToken();
+            listQueries.add(id);
+        }
+        return listQueries;
+    }
 
-	private static  String codeListQueries(Set<String> listQueries) {
-		String list = "";
-		boolean sep = false;
-		for (String key : listQueries) {
-			list = list + (sep ? "#" : "") + key;
-			sep = true;
-		}
-		return list;
-	}
+    private static String codeListQueries(Set<String> listQueries) {
+        String list = "";
+        boolean sep = false;
+        for (String key : listQueries) {
+            list = list + (sep ? "#" : "") + key;
+            sep = true;
+        }
+        return list;
+    }
 
 }
