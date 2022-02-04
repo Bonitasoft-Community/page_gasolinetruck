@@ -114,7 +114,7 @@ public class Actions {
             if (queryId!=null && action==null)
                 action="query";
 
-            final Map<String, Object>  jsonHash=null;
+            Map<String, Object>  jsonHash=null;
             if (paramJsonSt != null && paramJsonSt.length() > 0 ) {
             	
                 jsonHash = (Map<String, Object>) JSONValue.parse( paramJsonSt );
@@ -579,7 +579,7 @@ public class Actions {
             oneQuery.put("oldId", id );
             for (String attr : listAttributs)
             {
-                oneQuery.put( attr, , bonitaProperties.getProperty( id+"_"+attr ));
+                oneQuery.put( attr, bonitaProperties.getProperty( id+"_"+attr ));
             }
             /*
             oneQuery.put("sql", bonitaProperties.getProperty( id+"_sql" ));
