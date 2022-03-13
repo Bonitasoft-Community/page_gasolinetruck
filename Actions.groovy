@@ -1,61 +1,30 @@
-import java.text.SimpleDateFormat;
-import java.util.List;
-import java.util.Map;
-import java.util.logging.Logger;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.PrintWriter;
-import java.lang.Runtime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.StringTokenizer;
+import groovy.sql.Sql
+import org.bonitasoft.engine.api.IdentityAPI
+import org.bonitasoft.engine.api.ProcessAPI
+import org.bonitasoft.engine.api.ProfileAPI
+import org.bonitasoft.engine.api.TenantAPIAccessor
+import org.bonitasoft.engine.profile.Profile
+import org.bonitasoft.engine.profile.ProfileCriterion
+import org.bonitasoft.engine.search.SearchOptionsBuilder
+import org.bonitasoft.engine.search.SearchResult
+import org.bonitasoft.engine.session.APISession
+import org.bonitasoft.gasoline.GasolineAPI
+import org.bonitasoft.gasoline.TokenValidator
+import org.bonitasoft.log.event.BEvent
+import org.bonitasoft.log.event.BEvent.Level
+import org.bonitasoft.log.event.BEventFactory
+import org.bonitasoft.properties.BonitaProperties
+import org.bonitasoft.web.extension.page.PageContext
+import org.bonitasoft.web.extension.page.PageResourceProvider
+import org.json.simple.JSONValue
 
+import javax.naming.Context
+import javax.naming.InitialContext
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse
-import javax.servlet.http.HttpSession;
-import javax.naming.Context;
-import javax.naming.InitialContext;
-
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.Statement;
-import javax.sql.DataSource;
-import java.sql.DatabaseMetaData;
-
-import groovy.sql.Sql
-import groovy.json.JsonBuilder
-
-import org.json.simple.JSONObject;
-import org.codehaus.groovy.tools.shell.CommandAlias;
-import org.json.simple.JSONArray;
-import org.json.simple.JSONValue;
-import org.apache.commons.lang3.StringEscapeUtils
-
-import org.bonitasoft.web.extension.page.PageContext;
-import org.bonitasoft.web.extension.page.PageController;
-import org.bonitasoft.web.extension.page.PageResourceProvider;
-
-import org.bonitasoft.engine.exception.UnknownAPITypeException;
-
-import org.bonitasoft.engine.api.TenantAPIAccessor;
-import org.bonitasoft.engine.session.APISession;
-import org.bonitasoft.engine.api.CommandAPI;
-import org.bonitasoft.engine.api.ProcessAPI;
-import org.bonitasoft.engine.api.IdentityAPI;
-import org.bonitasoft.engine.api.ProfileAPI;
-
-import org.bonitasoft.engine.profile.ProfileCriterion;
-import org.bonitasoft.engine.profile.Profile;
-import org.bonitasoft.engine.search.SearchResult;
-import org.bonitasoft.engine.search.SearchOptionsBuilder;
-
-import org.bonitasoft.log.event.BEvent;
-import org.bonitasoft.log.event.BEvent.Level;
-import org.bonitasoft.log.event.BEventFactory;
-
-import org.bonitasoft.properties.BonitaProperties;
+import javax.servlet.http.HttpSession
+import javax.sql.DataSource
+import java.util.logging.Logger
 
 public class Actions {
 
@@ -91,6 +60,7 @@ public class Actions {
 			actionAnswer.isManaged=true;
 			
 			APISession session = pageContext.getApiSession();
+			long tenantId = session.getTenantId();
             HttpSession httpSession = request.getSession();            
 		    ProcessAPI processAPI = TenantAPIAccessor.getProcessAPI(session);
             ProfileAPI profileAPI =   TenantAPIAccessor.getProfileAPI(session);
@@ -106,7 +76,7 @@ public class Actions {
 				}
 			}
 			
-            def answerrows=null;
+            List answerrows=null;
             List<BEvent> listEvents = new ArrayList<BEvent>();
             
             logger.info(" jsonSt["+paramJsonSt+"]");
@@ -263,7 +233,7 @@ public class Actions {
                             StringWriter sw = new StringWriter();
                             e.printStackTrace(new PrintWriter(sw));
                             String exceptionDetails = sw.toString();
-                            logger.severe("LoadQuery:Exception "+e.toString()+" at "+exceptionDetails);
+                            logger.severe("GasolinePage:Exception "+e.toString()+" at "+exceptionDetails);
                             doSimulation="onerror".equals(simulationMode);
 
                             if (!doSimulation)
@@ -278,7 +248,7 @@ public class Actions {
                     } // end run sql
                     if (doSimulation)
                     {
-                        logger.info("LoadQuery: do simulation !");
+                        logger.info("GasolinePage: do simulation !");
                         Long delaySimulationms=null;
                         try {
                             delaySimulationms= Long.valueOf( bonitaProperties.getProperty( queryId+"_simulationdelayms" ));
@@ -318,16 +288,14 @@ public class Actions {
                     // Build the JSON answer with the query result
                     if ( "testquery".equals(action))
                     {
-                    	actionAnswer.responseMap.put("rows",rows);
+                    	actionAnswer.responseMap.put("rows", GasolineAPI.translateToJson(rows));
                         actionAnswer.responseMap.put("nbrows", rows==null ? 0 : rows.size());
                         actionAnswer.responseMap.put("stats", (endTime-beginTime));
                         actionAnswer.responseMap.put("dateexecution", new Date().toString());
-
-
                     }
                     else
                     {
-                        answerrows = rows;
+                        answerrows = GasolineAPI.translateToJson(rows);
                     }
                     
                     
@@ -340,7 +308,45 @@ public class Actions {
 				actionAnswer.responseMap.put("listevents", BEventFactory.getHtml(listEvents) );
 				return actionAnswer;
             } // end execute a query
-            else if ("collectReset".equals(action)) {
+		     // -------------------------- export
+			else if ("export".equals(action) ) {
+			     // then add the name and the correct content type
+                response.addHeader("content-disposition", "attachment; filename=ExportGasoline.zip");
+                response.addHeader("content-type", "application/zip");
+                
+                OutputStream containerZip=GasolineAPI.exportQueries( listEvents, tenantId);
+                OutputStream output = response.getOutputStream();
+
+                if (containerZip!=null)
+                    containerZip.writeTo( output );
+
+                output.flush();
+                output.close();
+                actionAnswer.isResponseMap=false;
+                return actionAnswer;
+			 } // end export
+			else if ("import".equals(action))
+			{
+                //Make sure no action is executed if the CSRF protection is active and the request header is invalid
+                if (! TokenValidator.checkCSRFToken(request, response)) {
+                    actionAnswer.isResponseMap=false;
+                    logger.info("#### GasolineTruck:Actions checkCSRFToken failed");                
+                    return actionAnswer;
+                }
+    
+                String filename= request.getParameter("filename");
+                
+                
+                listEvents.addAll(GasolineAPI.importQueries( filename, pageResourceProvider.getPageDirectory(), tenantId));
+                
+                
+                actionAnswer.responseMap.put("listeventsconfig", BEventFactory.getHtml(listEvents));
+
+                List<Map<String,String>> listQueries = new ArrayList<Map<String,String>>();
+                GasolineAPI.loadQueries( listQueries,  listEvents, tenantId);
+                actionAnswer.responseMap.put("listqueries",listQueries );
+
+			} else if ("collectReset".equals(action)) {
                 httpSession.setAttribute("accumulate", "" );
                 String paramJsonPartial = request.getParameter("paramjsonpartial");
                 logger.info("collectReset paramJsonPartial=["+paramJsonPartial+"]");
@@ -379,83 +385,19 @@ public class Actions {
 
              
                 if (jsonHash!=null) {
-                    try {
-                        BonitaProperties bonitaProperties = new BonitaProperties( pageResourceProvider );
+                    String id= jsonHash.get("id");
 
-                        listEvents.addAll( bonitaProperties.load() );
+                   GasolineAPI.saveQuery( (Map<String,String>) jsonHash,  listEvents, tenantId);
 
+                   if (! BEventFactory.isError( listEvents ))
+                   {
+                       listEvents.add( new BEvent("org.bonitasoft.gasoline", 1, Level.SUCCESS, "Queries saved", "the properties is saved with success"));
+                       actionAnswer.responseMap.put("id",id );
 
-                        // replace the old id by the new one
-                        Set<String> setqueriesid = decodeListQuery( bonitaProperties.getProperty( "listqueries" ) );
-
-                        String oldId= jsonHash.get("oldId");
-                        String id= jsonHash.get("id");
-
-                        logger.info("Id["+id+"] oldId["+oldId+"] Id exist ? "+setqueriesid.contains(id)+" setqueriesid["+setqueriesid+"]");
-
-                        if (setqueriesid.contains(id) && (oldId==null || ! oldId.equals( id ) ))
-                        {
-                            // the new ID already exist
-                            listEvents.add( new BEvent("org.bonitasoft.gasoline", 4, Level.APPLICATIONERROR, "ID already exist", "This ID already exist, and you can't have 2 requests with the same ID", "The query is not saved", "Change and choose an new id"));
-                        }
-                        else
-                        {
-                            if (oldId!=null && ! oldId.equals( id ) )
-                            {
-                                // remove the oldId in the list
-                                logger.info("Id change, remove the oldid["+oldId+"] in ["+setqueriesid+"]");
-                                setqueriesid.remove(oldId );
-
-                                logger.info("new listQueriesId["+setqueriesid+"]");
-                                for (String attr : listAttributs)
-                                {
-                                    bonitaProperties.remove( oldId+"_"+attr);
-                                }
-                            }
-                            setqueriesid.add( id );
-
-                            logger.info("new listqueriesid["+setqueriesid+"]");
-
-                            for (String attr : listAttributs)
-                            {
-                                logger.info("Save attr["+attr+"] value=["+ jsonHash.get(attr)+"]");
-                                
-                                bonitaProperties.setProperty( id+"_"+attr, (jsonHash.get(attr)==null ? "" :  jsonHash.get(attr)));
-                                /*
-                                 bonitaProperties.setProperty( id+"_datasource", (jsonHash.get("datasource")==null ? "" :  jsonHash.get("datasource")) );
-                                 bonitaProperties.setProperty( id+"_expl" , ( jsonHash.get("expl") == null ? "" :  jsonHash.get("expl")));
-                                 bonitaProperties.setProperty( id+"_profilename" , ( jsonHash.get("profilename") == null ? "" :  jsonHash.get("profilename")));
-                                 bonitaProperties.setProperty( id+"_testparameters" , ( jsonHash.get("testparameters") == null ? "" :  jsonHash.get("testparameters")));
-                                 bonitaProperties.setProperty( id+"_delayms" , ( jsonHash.get("delayms") == null ? "" :  jsonHash.get("delayms")));
-                                 bonitaProperties.setProperty( id+"_simulationmode",( jsonHash.get("simulationmode") == null ? "" :  jsonHash.get("simulationmode"))); );
-                                 bonitaProperties.setProperty( id+"_simulationresult",( jsonHash.get("simulationresult") == null ? "" :  jsonHash.get("simulationresult"))); );
-                                 bonitaProperties.setProperty( id+"_simulationdelayms",( jsonHash.get("simulationdelayms") == null ? "" :  jsonHash.get("simulationdelayms"))); );
-                                 */
-                            }
-                            bonitaProperties.setProperty( "listqueries", codeListQueries( setqueriesid ));
-
-                            listEvents.addAll(  bonitaProperties.store());
-
-                            if (! BEventFactory.isError( listEvents ))
-                            {
-                                listEvents.add( new BEvent("org.bonitasoft.gasoline", 1, Level.SUCCESS, "Queries saved", "the properties is saved with success"));
-                                actionAnswer.responseMap.put("id",id );
-
-                            }
-
-                        }
-                    }
-                    catch( Exception e ) {
-                        StringWriter sw = new StringWriter();
-                        e.printStackTrace(new PrintWriter(sw));
-                        String exceptionDetails = sw.toString();
-                        logger.severe("SaveQuery:Exception "+e.toString()+" at "+exceptionDetails);
-
-                        listEvents.add( new BEvent("org.bonitasoft.ping", 2, Level.APPLICATIONERROR, "Error using BonitaProperties", "Error :"+e.toString(), "Properties is not saved", "Check exception"));
-                    }
-
+                   }
+                   
                     List<Map<String,String>> listQueries = new ArrayList<Map<String,String>>();
-                    loadQueries(  pageResourceProvider, listQueries,  listEvents);
+                    GasolineAPI.loadQueries( listQueries,  listEvents, tenantId);
                     actionAnswer.responseMap.put("listqueries",listQueries );
                 }
                 else
@@ -463,14 +405,14 @@ public class Actions {
             }
             else  if ("loadqueries".equals(action)) {
 				try {
-					logger.info("loadqueries");
+				    logger.info("GasolineAPI.loadqueries name=["+"]");
 					List<Map<String,String>> listQueries = new ArrayList<Map<String,String>>();
-					loadQueries(  pageResourceProvider, listQueries,  listEvents);
+					GasolineAPI.loadQueries( listQueries,  listEvents, tenantId);
 					actionAnswer.responseMap.put("listqueries",listQueries );
 					
-					// get the list of profile 
-					List<String> listProfiles = new ArrayList<String>();
-				
+					
+					// get the list of profiles 
+					List<String> listProfiles = new ArrayList<String>();				
 					SearchOptionsBuilder searchOptions = new SearchOptionsBuilder(0,10000);
 					SearchResult<Profile> searchProfiles = profileAPI.searchProfiles(searchOptions.done());
                     for(Profile profile : searchProfiles.getResult())
@@ -521,7 +463,7 @@ public class Actions {
                          bonitaProperties.remove( id+"_testparameters" );
                          bonitaProperties.remove( id+"_delayms" );
                          */
-                        bonitaProperties.setProperty( "listqueries", codeListQueries( setqueriesid ));
+                        bonitaProperties.setProperty( "listqueries", GasolineAPI.codeListQueries( setqueriesid ));
 
 
                         listEvents.addAll(  bonitaProperties.store());
@@ -538,7 +480,7 @@ public class Actions {
                     listEvents.add( new BEvent("org.bonitasoft.gasolinetruck", 10, Level.APPLICATIONERROR, "Error loading queries", "Error :"+e.toString(), "Properties is not saved", "Check exception"));
                 }
                 List<Map<String,String>> listQueries = new ArrayList<Map<String,String>>();
-                loadQueries(  pageResourceProvider, listQueries,  listEvents);
+                GasolineAPI.loadQueries( listQueries,  listEvents, tenantId);
                 actionAnswer.responseMap.put("listqueries",listQueries );
 
             }
@@ -560,41 +502,7 @@ public class Actions {
 		return actionAnswer;
 	}
 
-    /**
-     * load all queries
-     * populate the listQueries and the listEvents
-     */
-    private static void loadQueries( PageResourceProvider pageResourceProvider, List<Map<String,String>> listQueries,  List<BEvent> listEvents)
-    {
-        BonitaProperties bonitaProperties = new BonitaProperties( pageResourceProvider );
-        listEvents.addAll( bonitaProperties.load() );
-        logger.info("Load done, events = "+listEvents.size() );
-
-
-        Set<String> setqueriesid = decodeListQuery( bonitaProperties.getProperty( "listqueries" ) );
-
-        for (String id : setqueriesid) {
-            Map<String,Object> oneQuery = new HashMap<String,Object>();
-            oneQuery.put("id", id );
-            oneQuery.put("oldId", id );
-            for (String attr : listAttributs)
-            {
-                oneQuery.put( attr, bonitaProperties.getProperty( id+"_"+attr ));
-            }
-            /*
-            oneQuery.put("sql", bonitaProperties.getProperty( id+"_sql" ));
-            oneQuery.put("datasource", bonitaProperties.getProperty( id+"_datasource" ));
-            oneQuery.put("expl", bonitaProperties.getProperty( id+"_expl" ));
-            oneQuery.put("profilename", bonitaProperties.getProperty( id+"_profilename" ));
-            oneQuery.put("testparameters", bonitaProperties.getProperty( id+"_testparameters" ));
-            oneQuery.put("delayms", bonitaProperties.getProperty( id+"_delayms" ));
-            oneQuery.put("profile", bonitaProperties.getProperty( id+"_profile" ));
-            */
-            listQueries.add (oneQuery );
-        }
-        return;
-
-    }
+  
 
     protected static Map<String, String> getSqlParametersFromUrl(HttpServletRequest request) {
         Map<String, String> params = [:];
@@ -632,14 +540,7 @@ public class Actions {
         return listQueries;
     }
 
-    private static String codeListQueries(Set<String> listQueries) {
-        String list = "";
-        boolean sep = false;
-        for (String key : listQueries) {
-            list = list + (sep ? "#" : "") + key;
-            sep = true;
-        }
-        return list;
-    }
+ 
 
+    
 }
