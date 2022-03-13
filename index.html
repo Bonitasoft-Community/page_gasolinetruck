@@ -17,6 +17,7 @@
 	<link rel="stylesheet" href="style/main.css">
 	<link rel="stylesheet" href="style/style.css">
     <link rel="stylesheet" href="style/ng-modal.css">
+	<link rel="stylesheet" href="style/dropbox.css">
 
 	<script type="text/javascript" src="https://www.google.com/jsapi"></script>
 
@@ -25,253 +26,268 @@
 <body ng-app="gasolinemonitor">
 
 
-<!--  Page Directory: @_PAGEDIRECTORY_@ -->
+<center>
+	<table>
+		<tr>
+			<td><h1>Gasoline Truck</h1>V1.11.0-SNAPSHOT</td>
+			<td rowspan="2"><img src="img/gasolinetruck.jpg" width="150" heigth="150" /></td>
+		</tr>
+		<tr><td>
+			
+			</td>
+		</tr><tr>
+			<td>
+			<div class="explanation">
+			Register you query, test it, and then access it via a REST API Call
+			</div>
+			</td>
+		<tr>
+	</table>
+</center>
+
+
+<div>
+<div class="col-lg-12 bs-component"  ng-controller="GasolineControler as gasolinectrl">
+		
+		
+	
+		
+	<!--  ************************************************************  -->	
+	<!--  Query        	 										-->
+	<!--  ************************************************************  -->
+	<!--  attention, do not use ng-if : with this tag, the drop down will not work -->		
+	
+
+	<legend class="text-primary">
+	<table width="100%"><tr>
+	<td width="70%">	<span class="glyphicon glyphicon-th"></span>Queries</td>	
+	<td style="padding-left: 20px"><a class="btn btn-default" href="?page=custompage_gasoline&action=export" >Export queries</a></td>
+	<td style="padding-left: 20px">
+		<div ng-file-drop ng-model="importfiles" class="drop-box ng-isolate-scope ng-valid ng-dirty"
+					drag-over-class="{accept:'dragover', reject:'dragover-err', delay:100}"
+					multiple="true" allow-dir="false"><div style="font-size: 10px">Drop your queries (zip file) here</div></div>
+		<div ng-no-file-drop class="drop-box" style="display: none;">File Drop is not supported for this browser</div>
+		
+	</td>
+	</tr>
+	</table>
+	</legend>
 
 	
-			
-<center>
-		<table>
-			<tr>
-				<td><h1>Gasoline Truck</h1>V1.10.0</td>
-				<td rowspan="2"><img src="img/gasolinetruck.jpg" width="150" heigth="150" /></td>
-			</tr>
-			<tr><td>
+	<div ng-bind-html="gasolinectrl.getListEvents(gasolinectrl.listeventsImported )"></div>
+	<div ng-bind-html="gasolinectrl.getListEvents(gasolinectrl.listevents )"></div>
+	
+	<div ng-show="gasolinectrl.loading">
+		<span class="Loading" >.</span> Loading..
+	</div>
+	<div style="{{gasolinectrl.getListStyle()}}">
 				
-				</td>
-			</tr><tr>
-				<td>
-				<div class="explanation">
-				Register you query, test it, and then access it via a REST API Call
-				</div>
-				</td>
+		<table class="table table-striped table-hover table-condensed">
 			<tr>
+				<th></th>
+				<th>QueryID</th>
+				<th>SqlQuery</th>
+				<th>Datasource</th>
+			</tr>
+			<tr ng-repeat="queryinfo in gasolinectrl.listqueries | orderBy : 'id'">							
+					<td>
+						<button class="btn btn-info btn-xs" ng-click="gasolinectrl.editQuery( queryinfo )" ng-disabled="gasolinectrl.isshowQueryPanel()">Edit/Remove</button>
+					</td>
+					<td>{{queryinfo.id}}</td>
+					<td>{{queryinfo.sql}}</td>
+					<td>{{queryinfo.datasource}}</td>
+					
+			</tr>
 		</table>
-		</center>
-
-
-	<div class="col-lg-12">
-		<div class="bs-component"  ng-controller="GasolineControler as gasolinectrl">
-		
-			<legend class="text-primary"><span class="glyphicon glyphicon-th"></span>List query</legend>
-				<div ng-bind-html="gasolinectrl.getListEvents(gasolinectrl.listevents )"></div>
-			
-			<div ng-show="gasolinectrl.loading">
-				<span class="Loading" >.</span> Loading..
-			</div>
-			<div style="{{gasolinectrl.getListStyle()}}">
+	
+		<button class="btn btn-primary btn-xs" ng-click="gasolinectrl.newQuery()" ng-disabled="gasolinectrl.isshowQueryPanel()">New query</button>
+	</div>
 						
-				<table class="table table-striped table-hover table-condensed">
+ 	<!--   {{gasolinectrl.listqueries}} --> 
+		
+	<div ng-show="gasolinectrl.isshowQueryPanel()" class="panel panel-info">
+		<div class="panel-heading"><span class="glyphicon glyphicon-th"></span>Query {{gasolinectrl.currentquery.id}} 
+			<button class="btn btn-success btn-xs" ng-click="gasolinectrl.closeQueryPanel()">Close</button>
+		</div>
+		<div class="panel-body">
+			<ul class="nav nav-pills" role="tablist">
+				<li role="presentation" class="active" id="query">
+					<a ng-click="gasolinectrl.setTab('query')">Query</a>
+				</li>
+				<li role="presentation" id="test">
+					<a ng-click="gasolinectrl.setTab('test')">Test</a>
+				</li>
+				<li role="presentation" id="simulation">
+					<a ng-click="gasolinectrl.setTab('simulation')">Simulation</a>
+				</li>
+			</ul>					
+		
+			<!--   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ query  -->
+			<div ng-show="gasolinectrl.currenttab == 'query'">
+				<table width="100%">
 					<tr>
-						<th></th>
-						<th>QueryID</th>
-						<th>SqlQuery</th>
-						<th>Datasource</th>
-					</tr>
-					<tr ng-repeat="queryinfo in gasolinectrl.listqueries | orderBy : 'id'">							
-							<td>
-								<button class="btn btn-info btn-xs" ng-click="gasolinectrl.editQuery( queryinfo )" ng-disabled="gasolinectrl.isshowQueryPanel()">Edit/Remove</button>
-							</td>
-							<td>{{queryinfo.id}}</td>
-							<td>{{queryinfo.sql}}</td>
-							<td>{{queryinfo.datasource}}</td>
-							
+						<td width="25%">	<h3>Query</h3></td>
+						<td><center>
+							<div ng-show="gasolinectrl.saving">
+								<span class="Loading" >.</span>.
+							</div>
+						</td>
+						<td>	
+							<button class="btn btn-danger btn-xs" ng-click="gasolinectrl.removeQuery( queryinfo )" ng-disabled="gasolinectrl.saving">Remove</button>
+						</td>
 					</tr>
 				</table>
-			
-			<button class="btn btn-primary btn-xs" ng-click="gasolinectrl.newQuery()" ng-disabled="gasolinectrl.isshowQueryPanel()">New query</button>
-			</div>
-								
-		 <!--   {{gasolinectrl.listqueries}} --> 
-		<!-- 		
-			<modal-dialog show='gasolinectrl.isshowDialog' dialog-title='Details' width='75%' height='80%' 	close="gasolinectrl.closeDialog()">
-				<div class="modal-content" width='100%' height='100%'>
- -->
- 			
- 			<div ng-show="gasolinectrl.isshowQueryPanel()" class="panel panel-info">
- 				<div class="panel-heading"><span class="glyphicon glyphicon-th"></span>Query {{gasolinectrl.currentquery.id}} 
-					<button class="btn btn-success btn-xs" ng-click="gasolinectrl.closeQueryPanel()">Close</button>
- 				</div>
-				<div class="panel-body">
-				<ul class="nav nav-pills" role="tablist">
-					<li role="presentation" class="active" id="query">
-						<a ng-click="gasolinectrl.setTab('query')">Query</a>
-					</li>
-					<li role="presentation" id="test">
-						<a ng-click="gasolinectrl.setTab('test')">Test</a>
-					</li>
-					<li role="presentation" id="simulation">
-						<a ng-click="gasolinectrl.setTab('simulation')">Simulation</a>
-					</li>
-				</ul>					
-				
-				<!--   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ query  -->
-				<div ng-show="gasolinectrl.currenttab == 'query'">
-					<table width="100%">
-						<tr>
-							<td width="25%">	<h3>Query</h3></td>
-							<td><center>
+					
+				<p>
+				<table  width="100%">
+					<tr>
+						<td style="vertical-align: top">QueryId:</td><td><input type="text" ng-model="gasolinectrl.currentquery.id"> </td>
+						<td style="vertical-align: top">Expl:</td><td><input type="text" ng-model="gasolinectrl.currentquery.expl"></td>
+					</tr><tr>
+						<td style="vertical-align: top">Sql:</td><td colspan="3"><textarea rows="4" cols="100" ng-model="gasolinectrl.currentquery.sql"></textarea><p>
+						TIPS: use <i>:<parametersname> to set a parameters, like <i>select * from country where age = :myage and title = :title </i></td>
+					</tr><tr>							
+						<td style="vertical-align: top">Datasource:</td><td>  <input type="text" ng-model="gasolinectrl.currentquery.datasource" size="60"><br>
+								TIPS: a datasource sould be <i>java:comp/env/NotManagedBizDataDS</i></td>
+						<td>Delay:</td><td>  <input type="text" ng-model="gasolinectrl.currentquery.delayms" >ms
+					</tr><tr>							
+						<td style="vertical-align: top">Profile:</td><td>  <input type="text" ng-model="gasolinectrl.currentquery.profilename" size="60"><br>
+								User must be registered in one of this profile to run the query. Empty for public query. Use comma to separate as "User, Voyageur, Monitor"</i><br>
+								Existing profiles: {{gasolinectrl.listprofiles}}</td>
+						
+					</tr><tr>
+						<td colspan="4">
+							<table>
+							<tr><td>
 								<div ng-show="gasolinectrl.saving">
-									<span class="Loading" >.</span>.
-								</div>
-							</td>
-							<td>	
-								<button class="btn btn-danger btn-xs" ng-click="gasolinectrl.removeQuery( queryinfo )" ng-disabled="gasolinectrl.saving">Remove</button>
-							</td>
-						</tr>
-					</table>
-							
-					<p>
-					<table  width="100%">
+									<span class="Loading" >.</span> .
+								</div>	
+							</td><td>							
+								<button class="btn btn-info btn-xs" ng-click="gasolinectrl.saveQuery()" ng-disabled="gasolinectrl.saving">Save</button>
+							</td></tr></table>
+							<!-- {{gasolinectrl.currentquery}} -->
+						</td>
+					</tr>
+					<tr><td colspan="4"> <div ng-bind-html="gasolinectrl.getListEvents(gasolinectrl.listeventssave )"></div></td>
+					<tr><td colspan="4"> <div class="well">To see the REST API, see the Test tab</div></td>
+					</tr>
+				</table>
+			</div>
+			
+			<!--   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ test -->
+			<div ng-show="gasolinectrl.currenttab == 'test'">
+				<h3>Tests</h3>
+				<table  width="100%">
+					<tr>
+						<td>Sql:</td><td colspan="3"><textarea rows="4" cols="100" ng-model="gasolinectrl.currentquery.sql"></textarea><p>
+						TIPS: use <i>:<parametersname> to set a parameters, like <i>select * from country where age = :myage and title = :title </i></td>
+					</tr><tr>
+						<td>Parameters:</td><td colspan="3"><input type="text" ng-model="gasolinectrl.testparameters"  size="60"><p>
+						TIPS : give all parameters, like myage=34&title=Mr
+						</td>
+					</tr><tr>
+						<td colspan="4">							
+						RestAPI:
+						<div >
+						<table>
 						<tr>
-							<td style="vertical-align: top">QueryId:</td><td><input type="text" ng-model="gasolinectrl.currentquery.id"> </td>
-							<td style="vertical-align: top">Expl:</td><td><input type="text" ng-model="gasolinectrl.currentquery.expl"></td>
+							<td><li/>Page deploy under a profile? 
+							</td><td><span class="label label-info">/bonita/portal/custom-page/custompage_gasolinetruck?action=query&queryId={{gasolinectrl.currentquery.id}}&{{gasolinectrl.testparameters}}</span></td>
 						</tr><tr>
-							<td style="vertical-align: top">Sql:</td><td colspan="3"><textarea rows="4" cols="100" ng-model="gasolinectrl.currentquery.sql"></textarea><p>
-							TIPS: use <i>:<parametersname> to set a parameters, like <i>select * from country where age = :myage and title = :title </i></td>
-						</tr><tr>							
-							<td style="vertical-align: top">Datasource:</td><td>  <input type="text" ng-model="gasolinectrl.currentquery.datasource" size="60"><br>
-									TIPS: a datasource sould be <i>java:comp/env/NotManagedBizDataDS</i></td>
-							<td>Delay:</td><td>  <input type="text" ng-model="gasolinectrl.currentquery.delayms" >ms
-						</tr><tr>							
-							<td style="vertical-align: top">Profile:</td><td>  <input type="text" ng-model="gasolinectrl.currentquery.profilename" size="60"><br>
-									User must be registered in one of this profile to run the query. Empty for public query. Use comma to separate as "User, Voyageur, Monitor"</i><br>
-									Existing profiles: {{gasolinectrl.listprofiles}}</td>
+							<td><li/>Page deploy under an application?
+							</td><td><span class="label label-info">/bonita/portal/resource/app/&lt;APP_NAME&gt;/&lt;PAGE_NAME&gt;/content/?page=custompage_gasolinetruck&action=query&queryId=bo</span></td>
+						</tr>
+						</table>
 							
-						</tr><tr>
-							<td colspan="4">
-								<table>
-								<tr><td>
-									<div ng-show="gasolinectrl.saving">
-										<span class="Loading" >.</span> .
-									</div>	
-								</td><td>							
-									<button class="btn btn-info btn-xs" ng-click="gasolinectrl.saveQuery()" ng-disabled="gasolinectrl.saving">Save</button>
-								</td></tr></table>
-								<!-- {{gasolinectrl.currentquery}} -->
-							</td>
+						</div>
+						<br/>
+						<div class="well">
+							This REST API works correctly in a UIDesigner page. If you like to test it from scratch, pay attention to join the X-Bonita-API-Token in the REST CALL.</div>
+						</td>
+					</tr><tr>
+					<td colspan="4">	
+						<table>
+							<tr><td>
+								<div ng-show="gasolinectrl.executing">
+									<span class="Loading" >.</span> Executing...
+								</div>
+							</td><td>							
+								<button class="btn btn-danger btn-xs" ng-click="gasolinectrl.testQuery()" ng-disabled="gasolinectrl.executing">Test</button> <p>
+							</td></tr></table>
+					</td>
+					</tr>
+				</table>
+					
+				
+	
+				<div ng-bind-html="gasolinectrl.getListEvents(gasolinectrl.listeventstest )"></div>
+				<i>{{gasolinectrl.resulttestquery.nbrows}} rows, executed in {{gasolinectrl.resulttestquery.stats}} ms at {{gasolinectrl.resulttestquery.dateexecution}}</i><p>
+				
+				<input type="radio" ng-model="gasolinectrl.testdisplay" value="json">JSON
+				<input type="radio" ng-model="gasolinectrl.testdisplay" value="list">List
+				
+				<div ng-show="gasolinectrl.testdisplay == 'json'">  
+					{{gasolinectrl.resulttestquery.rows}}
+				</div>
+				<div ng-show="gasolinectrl.testdisplay == 'list'"> 
+					<table class="table table-bordered">
+						<!-- <tr><td>{{gasolinectrl.getHeaderResultTest()}}</td</tr>   -->  
+					
+						<tr>
+							<th ng-repeat="(col,value)  in gasolinectrl.getHeaderResultTest() | orderBy : col">
+							 {{value}}
+							</th>
 						</tr>
-						<tr><td colspan="4"> <div ng-bind-html="gasolinectrl.getListEvents(gasolinectrl.listeventssave )"></div></td>
-						<tr><td colspan="4"> <div class="well">To see the REST API, see the Test tab</div></td>
-						</tr>
+						
+						<tr ng-repeat="resulttest in gasolinectrl.resulttestquery.rows">
+							
+								<td ng-repeat="(col,value) in gasolinectrl.getHeaderResultTest()  | orderBy : col ">
+									{{resulttest[ value ]}}
+								<td>
+							</tr>
 					</table>
 				</div>
-					
-				<!--   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ test -->
-				<div ng-show="gasolinectrl.currenttab == 'test'">
-					<h3>Tests</h3>
-					<table  width="100%">
-						<tr>
-							<td>Sql:</td><td colspan="3"><textarea rows="4" cols="100" ng-model="gasolinectrl.currentquery.sql"></textarea><p>
-							TIPS: use <i>:<parametersname> to set a parameters, like <i>select * from country where age = :myage and title = :title </i></td>
-						</tr><tr>
-							<td>Parameters:</td><td colspan="3"><input type="text" ng-model="gasolinectrl.testparameters"  size="60"><p>
-							TIPS : give all parameters, like myage=34&title=Mr
-							</td>
-						</tr><tr>
-							<td colspan="4">							
-							RestAPI:
-							<div >
-							<table>
-							<tr>
-								<td><li/>Page deploy under a profile? 
-								</td><td><span class="label label-info">/bonita/portal/custom-page/custompage_gasolinetruck?action=query&queryId={{gasolinectrl.currentquery.id}}&{{gasolinectrl.testparameters}}</span></td>
-							</tr><tr>
-								<td><li/>Page deploy under an application?
-								</td><td><span class="label label-info">/bonita/portal/resource/app/&lt;APP_NAME&gt;/&lt;PAGE_NAME&gt;/content/?page=custompage_gasolinetruck&action=query&queryId=bo</span></td>
-							</tr>
-							</table>
-								
-							</div>
-							<br/>
-							<div class="well">
-								This REST API works correctly in a UIDesigner page. If you like to test it from scratch, pay attention to join the X-Bonita-API-Token in the REST CALL.</div>
-							</td>
-						</tr><tr>
-						<td colspan="4">	
-							<table>
-								<tr><td>
-									<div ng-show="gasolinectrl.executing">
-										<span class="Loading" >.</span> Executing...
-									</div>
-								</td><td>							
-									<button class="btn btn-danger btn-xs" ng-click="gasolinectrl.testQuery()" ng-disabled="gasolinectrl.executing">Test</button> <p>
-								</td></tr></table>
+				
+			</div> <!--  end tab test -->
+			
+			<!--   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ simulation -->
+			<div ng-show="gasolinectrl.currenttab == 'simulation'">
+				<h3>Simulation</h3>
+				<table  width="100%">
+					<tr>
+						<td>Mode:</td><td><select ng-model="gasolinectrl.currentquery.simulationmode">
+																<option value="never">Never</option>
+																<option value="always">Always</option>
+																<option value="onerror">On Error (if request failed)</option>
+															</select> 
+					<tr>
+						<td>Result:</td><td><textarea rows="4" cols="100" ng-model="gasolinectrl.currentquery.simulationresult"></textarea><p>
+					</tr><tr>
+					  <td colspan="2"><div class="alert alert-warning">Attention, the size of SqlRequest + Result : a custom page work in HTTP GET so limit is about 2K-8K</div></td>
+					</tr><tr>
+					<td>Delay:</td><td>  <input type="text" ng-model="gasolinectrl.currentquery.simulationdelayms" >ms
+					</tr><tr>
+						<td colspan="2">
+							<button class="btn btn-info btn-xs" ng-click="gasolinectrl.saveQuery()">Save</button>
+							<!-- {{gasolinectrl.currentquery}} -->
 						</td>
-						</tr>
-					</table>
-						
+					</tr>
+					<tr><td  colspan="2">	<div ng-bind-html="gasolinectrl.getListEvents(gasolinectrl.listeventssave )"></div></td>
+					</tr>
 					
-		
-					<div ng-bind-html="gasolinectrl.getListEvents(gasolinectrl.listeventstest )"></div>
-					<i>{{gasolinectrl.resulttestquery.nbrows}} rows, executed in {{gasolinectrl.resulttestquery.stats}} ms at {{gasolinectrl.resulttestquery.dateexecution}}</i><p>
-					
-					<input type="radio" ng-model="gasolinectrl.testdisplay" value="json">JSON
-					<input type="radio" ng-model="gasolinectrl.testdisplay" value="list">List
-					
-					<div ng-show="gasolinectrl.testdisplay == 'json'">  
-						{{gasolinectrl.resulttestquery.rows}}
-					</div>
-					<div ng-show="gasolinectrl.testdisplay == 'list'"> 
-						<table class="table table-bordered">
-							<!-- <tr><td>{{gasolinectrl.getHeaderResultTest()}}</td</tr>   -->  
-						
-							<tr>
-								<th ng-repeat="(col,value)  in gasolinectrl.getHeaderResultTest() | orderBy : col">
-								 {{value}}
-								</th>
-							</tr>
-							
-							<tr ng-repeat="resulttest in gasolinectrl.resulttestquery.rows">
-								
-									<td ng-repeat="(col,value) in gasolinectrl.getHeaderResultTest()  | orderBy : col ">
-										{{resulttest[ value ]}}
-									<td>
-								</tr>
-						</table>
-					</div>
-					
-				</div> <!--  end tab test -->
-					
-						<!--   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ simulation -->
-				<div ng-show="gasolinectrl.currenttab == 'simulation'">
-					<h3>Simulation</h3>
-					<table  width="100%">
-						<tr>
-							<td>Mode:</td><td><select ng-model="gasolinectrl.currentquery.simulationmode">
-																	<option value="never">Never</option>
-																	<option value="always">Always</option>
-																	<option value="onerror">On Error (if request failed)</option>
-																</select> 
-						<tr>
-							<td>Result:</td><td><textarea rows="4" cols="100" ng-model="gasolinectrl.currentquery.simulationresult"></textarea><p>
-						</tr><tr>
-						  <td colspan="2"><div class="alert alert-warning">Attention, the size of SqlRequest + Result : a custom page work in HTTP GET so limit is about 2K-8K</div></td>
-						</tr><tr>
-						<td>Delay:</td><td>  <input type="text" ng-model="gasolinectrl.currentquery.simulationdelayms" >ms
-						</tr><tr>
-							<td colspan="2">
-								<button class="btn btn-info btn-xs" ng-click="gasolinectrl.saveQuery()">Save</button>
-								<!-- {{gasolinectrl.currentquery}} -->
-							</td>
-						</tr>
-						<tr><td  colspan="2">	<div ng-bind-html="gasolinectrl.getListEvents(gasolinectrl.listeventssave )"></div></td>
-						</tr>
-						
-					</table>
-						<!--   {{gasolinectrl.currentquery}} -->
-					</div>
-					
-				</div> <!--  end tab test -->
-				
-				</div> <!--  end panel-body--> 
-					
-					
-			</div> <!-- end panel --> 
-			<!--  </modal-dialog> -->
-				
-				
-	  	</div> <!--  end controller -->
-	</div> <!-- end lg12 -->
+				</table>
+					<!--   {{gasolinectrl.currentquery}} -->
+			</div>  <!--  end tab simulation -->
+			
+		</div> <!--  end panel-body--> 
+			
+			
+	</div> <!-- end isshowQueryPane --> 
+	
+	
+	
+ </div> <!--  end controller -->
+</div> <!-- end lg12 -->
 
 
 
@@ -286,7 +302,8 @@
 
 <script src="3rd-party/bootstrap/js/bootstrap.min.js"></script>
 <script src="3rd-party/angular-bootstrap-tpls.min.js"></script>
-<script src="3rd-party/angular-file-upload.js"></script>
+<script	src="3rd-party/angular-file-upload.min.js"></script>
+<script	src="3rd-party/angular-file-upload-shim.min.js"></script>
 <script src="3rd-party/ng-google-chart.js"></script>
 <script src="3rd-party/angular-sanitize.min.js"></script>
 <script src="3rd-party/ng-modal.min.js"></script>

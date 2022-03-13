@@ -6,7 +6,7 @@
 (function() {
 
 
-var appCommand = angular.module('gasolinemonitor', ['googlechart', 'ui.bootstrap','ngSanitize', 'ngModal', 'ngCookies']);
+var appCommand = angular.module('gasolinemonitor', ['googlechart', 'ui.bootstrap','ngSanitize', 'ngModal', 'ngCookies', 'angularFileUpload']);
 
 
 
@@ -21,7 +21,7 @@ var appCommand = angular.module('gasolinemonitor', ['googlechart', 'ui.bootstrap
 
 // Ping the server
 appCommand.controller('GasolineControler',
-	function ( $http, $scope,$sce, $cookies ) {
+	function ( $http, $scope, $sce, $cookies, $upload ) {
 
 	
 	// --------------------------------------------------------------------------
@@ -36,10 +36,21 @@ appCommand.controller('GasolineControler',
 	};
 	
 	this.listevents = '';
+	this.listeventsImported='';
+	this.listeventssave=''; 
+	this.listeventstest='';
+
+
 	this.getListEvents = function ( listevents ) {
 		return $sce.trustAsHtml(  listevents);
 	}
 	
+	this.clearEvents = function() {
+		this.listeventsImported='';
+		this.listevents='';
+		this.listeventssave='';
+		this.listeventstest='';
+	}
 	this.getHttpConfig = function () {
 		var additionalHeaders = {};
 		var csrfToken = $cookies.get('X-Bonita-API-Token');
@@ -79,6 +90,7 @@ appCommand.controller('GasolineControler',
 	
 	this.loadQueries =function() {
 		var self=this;
+		this.clearEvents();
 		self.loading=true;
 		var d = new Date();
 		
@@ -105,8 +117,7 @@ appCommand.controller('GasolineControler',
 	 */
 	this.saveQuery = function() {
 		var self=this;
-		
-		self.listeventssave=''; 
+		this.clearEvents();
 		self.saving=true;
 		
 		this.sendPost("savequery",this.currentquery, this.saveQueryCallback);
@@ -143,7 +154,7 @@ appCommand.controller('GasolineControler',
 		var self=this;
 		if (! confirm("Would you like to remove this query ?"))
 			return;
-		self.listeventssave=''; 
+		this.clearEvents(); 
 		
 		var param= {id: this.currentquery.id};
 		var json= encodeURI( angular.toJson(param, false));
@@ -173,8 +184,8 @@ appCommand.controller('GasolineControler',
 	this.executing=false;
 	this.testQuery = function() {
 		var self=this;
-		self.listeventstest='';
-		self.listeventssave='';
+		this.clearEvents(); 
+
 		self.executing=true;	
 		var param = angular.fromJson(angular.toJson(this.currentquery));
 		param.testparameters= this.testparameters;
@@ -334,6 +345,7 @@ appCommand.controller('GasolineControler',
 			self.inprogress = false;				
 			});	
 	};
+	
 	// --------------------------------------------------------------------------
 	//
 	//  Manage the modal
@@ -359,7 +371,7 @@ appCommand.controller('GasolineControler',
 		document.getElementById( this.currenttab ).className ='active';
 	};
 	this.getHeaderResultTest = function() {
-		if (this.resulttestquery.rows && this.resulttestquery.rows.length > 0)
+		if (this.resulttestquery && this.resulttestquery.rows && this.resulttestquery.rows.length > 0)
 		{
 			var firstline =  this.resulttestquery.rows[ 0 ];
 			var listCols= [];
@@ -374,6 +386,64 @@ appCommand.controller('GasolineControler',
 		return [];
 	}
 
+	// --------------------------------------------------------------------------
+	//
+	//  Upload file
+	//
+	// --------------------------------------------------------------------------
+	this.fileIsDropped = function( testfileimported ) {
+		var self=this;
+		this.clearEvents();
+		console.log("fileIsDropped : This="+this+" me="+me);
+		self.wait=true;
+		$http.get( '?page=custompage_gasolinetruck&action=import&filename='+testfileimported+'&t='+Date.now(), this.getHttpConfig() )
+		.success( function ( jsonResult, statusHttp, headers, config ) {
+				
+			// connection is lost ?
+			if (statusHttp==401 || typeof jsonResult === 'string') {
+				console.log("Redirected to the login page !");
+				window.location.reload();
+			}
+			console.log("Retoir fileIsDropped"); 
+			// here the refresh
+			self.listqueries 		= jsonResult.listqueries;
+			self.listevents			= jsonResult.listevents;
+			self.wait=false;
+		})
+		.error( function ( jsonResult ) {
+			self.wait=false});
+		
+	}
+	
+	var me = this;
+	$scope.$watch('importfiles', function() {
+		
+		console.log("Watch import file");
+		if (! $scope.importfiles) {
+			return;
+		}
+		console.log("Watch import file.lenght="+ $scope.importfiles.length);
+		for (var i = 0; i < $scope.importfiles.length; i++) {
+			me.wait=true;
+			var file = $scope.importfiles[i];
+			
+			// V6 : url is fileUpload
+			// V7 : /bonita/portal/fileUpload
+			$scope.upload = $upload.upload({
+				url: '/bonita/portal/fileUpload',
+				method: 'POST',
+				data: {myObj: $scope.myModelObj},
+				file: file
+			}).progress(function(evt) {
+// console.log('progress: ' + parseInt(100.0 * evt.loaded / evt.total) + '% file
+// :'+ evt.config.file.name);
+			}).success(function(data, status, headers, config) {
+			
+				console.log('file ' + config.file.name + 'is uploaded successfully. Response: ' + data);
+				me.fileIsDropped(data);
+			});
+		} // end $scope.importfiles
+	}); 
 });
 
 
